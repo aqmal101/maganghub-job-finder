@@ -24,7 +24,13 @@ h1,h2 { font-family:"Space Grotesk"; letter-spacing:-.055em; margin:0; }
 .searchbar label { display:block; color:#8d9a93; font:11px "DM Mono"; margin-bottom:9px; }
 .search-row { display:flex; max-width:620px; border-bottom:1px solid #718078; }
 .search-row input { flex:1; min-width:0; border:0; outline:0; color:#f4f3ed; background:transparent; padding:13px 0; font-size:17px; } .search-row input::placeholder { color:#718078; }
-.search-row button,.primary-button { background:var(--accent); color:var(--ink); border:0; padding:13px 19px; font-weight:700; }
+.search-row button,.primary-button { background:var(--accent); color:var(--ink); border:0; padding:13px 19px; font-weight:700; transition:filter .2s, transform .2s; } .search-row button:hover:not(:disabled),.primary-button:hover { filter:brightness(1.05); transform:translateY(-1px); } .search-row button:disabled { cursor:wait; opacity:.85; }
+.search-select { position:relative; } .search-hint { display:block; margin-top:9px; color:#8d9a93; font:11px "DM Mono"; }
+.suggestions { position:absolute; left:0; right:0; top:54px; z-index:4; padding:7px; background:#25332d; border:1px solid #526159; box-shadow:0 12px 30px rgba(0,0,0,.24); animation:suggestion-in .18s cubic-bezier(.16,1,.3,1); }
+.suggestions button { display:flex; align-items:center; gap:9px; width:100%; padding:10px 11px; background:transparent; color:#dce4de; text-align:left; font-size:13px; } .suggestions button:hover,.suggestions button:focus-visible { background:#34453d; color:#fff; outline:0; } .suggestion-mark { color:var(--accent); font:12px "DM Mono"; }
+@keyframes suggestion-in { from { opacity:0; transform:translateY(-5px); } to { opacity:1; transform:translateY(0); } }
+.button-spinner { display:inline-block; width:11px; height:11px; margin-right:8px; border:2px solid rgba(23,32,29,.28); border-top-color:var(--ink); border-radius:50%; animation:spin .7s linear infinite; vertical-align:-1px; } .button-spinner.dark { border-color:rgba(23,32,29,.22); border-top-color:var(--ink); }
+@keyframes spin { to { transform:rotate(360deg); } }
 .hero-index { width:190px; align-self:flex-end; position:relative; z-index:1; color:#8d9a93; font:12px "DM Mono"; }
 .hero-index strong { display:block; color:var(--accent); font:600 80px "Space Grotesk"; letter-spacing:-.09em; line-height:1; margin:13px 0 4px; }
 .index-rule { height:1px; background:#526159; margin:26px 0 16px; }
@@ -35,13 +41,15 @@ h1,h2 { font-family:"Space Grotesk"; letter-spacing:-.055em; margin:0; }
 .stats-strip strong { font:600 25px "Space Grotesk"; letter-spacing:-.04em; } .status-live { color:#4e7a36; }
 .catalog { padding:80px clamp(20px,9vw,140px) 100px; }
 .section-heading { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:31px; } .section-heading h2 { font-size:42px; } .result-count { color:var(--muted); font:12px "DM Mono"; }
-.filters { display:flex; align-items:flex-end; gap:18px; margin-bottom:18px; } .filters label { display:flex; flex-direction:column; gap:7px; color:var(--muted); font:11px "DM Mono"; }
+.filters { display:flex; align-items:flex-end; gap:12px; margin-bottom:18px; flex-wrap:wrap; } .filters label { display:flex; flex-direction:column; gap:7px; color:var(--muted); font:11px "DM Mono"; }
 .filters select { min-width:190px; border:1px solid var(--line); padding:11px 12px; background:var(--panel); color:var(--ink); }
-.filter-button { border:1px solid var(--ink); background:transparent; padding:11px 15px; } .download-link { margin-left:auto; color:var(--muted); font:12px "DM Mono"; padding:12px 0; border-bottom:1px solid var(--muted); }
+.filter-button { border:1px solid var(--ink); background:transparent; padding:11px 15px; transition:background .2s, color .2s, transform .2s; } .filter-button:hover:not(:disabled) { background:var(--ink); color:var(--paper); transform:translateY(-1px); } .filter-button:disabled { opacity:.55; cursor:wait; } .download-link { margin-left:auto; color:var(--muted); font:12px "DM Mono"; padding:12px 0; border-bottom:1px solid var(--muted); transition:color .2s, border-color .2s; } .download-link:hover { color:var(--ink); border-color:var(--ink); } .download-link.is-downloading { color:#819017; border-color:#819017; } .download-icon { display:inline-block; min-width:16px; margin-right:5px; font-size:16px; }
+.search-progress { display:flex; align-items:center; gap:9px; min-height:34px; color:#66716b; font:11px "DM Mono"; animation:progress-in .2s ease-out; } .search-progress span { width:7px; height:7px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 5px rgba(216,233,78,.18); animation:progress-pulse 1s ease-in-out infinite; }
+@keyframes progress-in { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } } @keyframes progress-pulse { 50% { transform:scale(1.45); opacity:.5; } }
 .board { border-top:2px solid var(--ink); }
 .board-head,.job-row { display:grid; grid-template-columns:2.4fr 1.3fr 1fr 1.2fr 28px; gap:20px; align-items:center; }
 .board-head { color:var(--muted); font:10px "DM Mono"; text-transform:uppercase; padding:12px 14px; letter-spacing:.08em; }
-.job-row { min-height:88px; padding:18px 14px; border-top:1px solid var(--line); transition:background .2s, padding .2s; } .job-row:hover { background:#ebeae2; padding-left:20px; }
+.job-row { min-height:88px; padding:18px 14px; border-top:1px solid var(--line); transition:background .2s, transform .2s; } .job-row:hover { background:#ebeae2; transform:translateX(6px); }
 .job-name b,.job-name small { display:block; } .job-name b { font-size:16px; font-weight:600; } .job-name small { color:var(--muted); margin-top:5px; }
 .opportunity { color:#667b29; font:12px "DM Mono"; } .status-dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:#4e7a36; margin-right:8px; } .status-dot.partial { background:#c18c39; } .status-dot.failed { background:#a9544b; }
 .arrow { font-size:18px; text-align:right; } .pagination { display:flex; justify-content:center; align-items:center; gap:18px; margin-top:28px; font:12px "DM Mono"; } .pagination button { border:1px solid var(--line); background:var(--panel); padding:9px 13px; } .pagination button:disabled { opacity:.4; cursor:not-allowed; }

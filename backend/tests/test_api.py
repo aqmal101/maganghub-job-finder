@@ -19,6 +19,7 @@ def make_client(tmp_path: Path) -> TestClient:
                     "title": "Python Intern",
                     "company": "Example",
                     "location": "Jakarta",
+                    "opportunity": "Peluang Besar (50%)",
                 },
                 "detail": {"title": "Python Intern"},
                 "scraping_status": "success",
@@ -29,6 +30,7 @@ def make_client(tmp_path: Path) -> TestClient:
                     "title": "Design Intern",
                     "company": "Studio",
                     "location": "Bandung",
+                    "opportunity": "Peluang Sedang (33%)",
                 },
                 "detail": {},
                 "scraping_status": "partial",
@@ -55,6 +57,20 @@ def test_jobs_pagination_and_filter(tmp_path, monkeypatch):
     client = make_client(tmp_path)
 
     response = client.get("/api/v1/jobs", params={"search": "python"})
+
+    assert response.status_code == 200
+    assert response.json()["pagination"]["total"] == 1
+
+
+def test_jobs_supports_status_and_opportunity_filters(tmp_path, monkeypatch):
+    settings = get_settings()
+    monkeypatch.setattr(settings, "data_dir", tmp_path)
+    client = make_client(tmp_path)
+
+    response = client.get(
+        "/api/v1/jobs",
+        params={"status": "partial", "opportunity": "sedang"},
+    )
 
     assert response.status_code == 200
     assert response.json()["pagination"]["total"] == 1

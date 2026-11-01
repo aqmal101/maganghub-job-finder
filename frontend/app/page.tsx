@@ -8,6 +8,7 @@ type Listing = {
   title?: string;
   company?: string;
   location?: string;
+  majors_raw?: string;
   opportunity?: string;
   quota?: number | string | null;
   applicants?: number | string | null;
@@ -56,13 +57,23 @@ export default function Home() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [query, setQuery] = useState("");
   const [location, setLocation] = useState("");
+  const [status, setStatus] = useState("");
+  const [opportunity, setOpportunity] = useState("");
   const [submittedQuery, setSubmittedQuery] = useState("");
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState<JobsResponse["pagination"] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
-  const loadData = async (nextPage = page, search = submittedQuery, nextLocation = location) => {
+  const loadData = async (
+    nextPage = page,
+    search = submittedQuery,
+    nextLocation = location,
+    nextStatus = status,
+    nextOpportunity = opportunity,
+  ) => {
     setLoading(true);
     setError("");
     try {
@@ -72,6 +83,8 @@ export default function Home() {
       });
       if (search) params.set("search", search);
       if (nextLocation) params.set("location", nextLocation);
+      if (nextStatus) params.set("status", nextStatus);
+      if (nextOpportunity) params.set("opportunity", nextOpportunity);
       const [jobsResponse, statsResponse] = await Promise.all([
         fetch(`${API_BASE}/api/v1/jobs?${params}`),
         fetch(`${API_BASE}/api/v1/statistics`),
@@ -95,20 +108,42 @@ export default function Home() {
   }, []);
 
   const locations = useMemo(
-    () => Array.from(new Set(jobs.map((job) => job.listing?.location).filter(Boolean))),
+    () => Array.from(new Set(jobs.map((job) => job.listing?.location).filter(Boolean))).sort(),
     [jobs],
   );
+  const suggestions = useMemo(() => {
+    const values = jobs.flatMap((job) => {
+      const listing = job.listing ?? {};
+      return [
+        listing.title,
+        listing.company,
+        ...(listing.majors_raw?.split(",").map((major) => major.trim()) ?? []),
+      ];
+    });
+    return Array.from(new Set(values.filter(Boolean))).sort().slice(0, 20) as string[];
+  }, [jobs]);
 
   function submitFilters(event: FormEvent) {
     event.preventDefault();
     setSubmittedQuery(query.trim());
     setPage(1);
-    void loadData(1, query.trim(), location);
+    setSearchOpen(false);
+    void loadData(1, query.trim(), location, status, opportunity);
   }
 
   function changePage(nextPage: number) {
     setPage(nextPage);
-    void loadData(nextPage, submittedQuery, location);
+    void loadData(nextPage, submittedQuery, location, status, opportunity);
+  }
+
+  function chooseSuggestion(value: string) {
+    setQuery(value);
+    setSearchOpen(false);
+  }
+
+  function startDownload() {
+    setDownloading(true);
+    window.setTimeout(() => setDownloading(false), 1800);
   }
 
   return (
@@ -135,15 +170,45 @@ export default function Home() {
           </p>
           <form className="searchbar" onSubmit={submitFilters}>
             <label htmlFor="search">Cari posisi, perusahaan, atau jurusan</label>
-            <div className="search-row">
+            <div className="search-row search-select">
               <input
                 id="search"
+                role="combobox"
+                aria-expanded={searchOpen}
+                aria-controls="search-suggestions"
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="mis. software engineer"
+                onFocus={() => setSearchOpen(true)}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setSearchOpen(true);
+                }}
+                placeholder="mis. software engineer atau Teknik Informatika"
               />
-              <button type="submit">Cari lowongan</button>
+              <button type="submit" disabled={loading}>
+                {loading ? <><span className="button-spinner" />Mencari...</> : "Cari lowongan"}
+              </button>
+              {searchOpen && suggestions.length > 0 && (
+                <div className="suggestions" id="search-suggestions" role="listbox">
+                  {suggestions
+                    .filter((item) => item.toLowerCase().includes(query.toLowerCase()))
+                    .slice(0, 7)
+                    .map((item) => (
+                      <button
+                        type="button"
+                        role="option"
+                        key={item}
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => chooseSuggestion(item)}
+                      >
+                        <span className="suggestion-mark">↗</span>{item}
+                      </button>
+                    ))}
+                </div>
+              )}
             </div>
+            <span className="search-hint" aria-live="polite">
+              {loading ? "Memperbarui hasil secara langsung..." : "Pilih saran atau ketik kata kunci apa saja."}
+            </span>
           </form>
         </div>
         <div className="hero-index" aria-label="Ringkasan katalog">
@@ -179,10 +244,40 @@ export default function Home() {
               {locations.map((item) => <option key={item} value={item}>{item}</option>)}
             </select>
           </label>
-          <button type="submit" className="filter-button">Terapkan filter</button>
-          <a className="download-link" href={`${API_BASE}/api/v1/exports/jobs.csv`}>Unduh CSV</a>
+          <label>
+            Status
+            <select value={status} onChange={(event) => setStatus(event.target.value)}>
+              <option value="">Semua status</option>
+              <option value="success">Terverifikasi</option>
+              <option value="partial">Sebagian</option>
+              <option value="failed">Perlu ditinjau</option>
+            </select>
+          </label>
+          <label>
+            Peluang
+            <select value={opportunity} onChange={(event) => setOpportunity(event.target.value)}>
+              <option value="">Semua peluang</option>
+              <option value="Besar">Peluang besar</option>
+              <option value="Sedang">Peluang sedang</option>
+              <option value="Kecil">Peluang kecil</option>
+            </select>
+          </label>
+          <button type="submit" className="filter-button" disabled={loading}>
+            {loading ? <><span className="button-spinner dark" />Memuat...</> : "Terapkan filter"}
+          </button>
+          <a
+            className={`download-link ${downloading ? "is-downloading" : ""}`}
+            href={`${API_BASE}/api/v1/exports/jobs.csv`}
+            download="maganghub-jobs.csv"
+            onClick={startDownload}
+            aria-live="polite"
+          >
+            <span className="download-icon">{downloading ? "⋯" : "↓"}</span>
+            {downloading ? "Menyiapkan unduhan..." : "Unduh CSV"}
+          </a>
         </form>
 
+        {loading && <div className="search-progress" role="status"><span />Menyusun hasil yang paling relevan...</div>}
         {error && <div className="state-box error-state"><strong>Data belum dapat dimuat.</strong><span>{error} Pastikan API berjalan di port 8000.</span><button onClick={() => void loadData()}>Coba lagi</button></div>}
         {!error && loading && <div className="state-box"><span className="pulse" />Memuat katalog terbaru...</div>}
         {!error && !loading && jobs.length === 0 && <div className="state-box"><strong>Tidak ada lowongan yang cocok.</strong><span>Coba kata kunci atau lokasi yang lebih umum.</span></div>}

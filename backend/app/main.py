@@ -66,7 +66,13 @@ def job_listing(job: dict) -> dict:
     return listing if isinstance(listing, dict) else {}
 
 
-def job_matches(job: dict, search: str | None, location: str | None) -> bool:
+def job_matches(
+    job: dict,
+    search: str | None,
+    location: str | None,
+    status: str | None,
+    opportunity: str | None,
+) -> bool:
     listing = job_listing(job)
     if search:
         haystack = " ".join(
@@ -77,6 +83,12 @@ def job_matches(job: dict, search: str | None, location: str | None) -> bool:
             return False
     if location and location.casefold() not in str(
         listing.get("location", "")
+    ).casefold():
+        return False
+    if status and str(job.get("scraping_status", "")).casefold() != status.casefold():
+        return False
+    if opportunity and opportunity.casefold() not in str(
+        listing.get("opportunity", "")
     ).casefold():
         return False
     return True
@@ -111,19 +123,21 @@ def get_jobs(
     page_size: Annotated[int, Query(ge=1, le=100)] = 20,
     search: Annotated[str | None, Query(max_length=100)] = None,
     location: Annotated[str | None, Query(max_length=100)] = None,
+    status: Annotated[str | None, Query(pattern="^(success|partial|failed)$")] = None,
+    opportunity: Annotated[str | None, Query(max_length=100)] = None,
     repo: LegacyJsonRepository = Depends(repository),
     settings: Settings = Depends(get_settings),
     rate_limiter: RateLimiter = Depends(limiter),
 ) -> JobListResponse:
     enforce_rate_limit(
-        request, "jobs-search" if search or location else "jobs",
-        settings.rate_limit_search if search or location else settings.rate_limit_jobs,
+        request, "jobs-search" if search or location or status or opportunity else "jobs",
+        settings.rate_limit_search if search or location or status or opportunity else settings.rate_limit_jobs,
         rate_limiter, settings,
     )
     try:
         jobs = [
             job for job in repo.jobs()
-            if job_matches(job, search, location)
+            if job_matches(job, search, location, status, opportunity)
         ]
     except LegacyDataError as error:
         raise handle_data_error(error) from error
