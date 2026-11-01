@@ -200,6 +200,42 @@ def main():
             browser.close()
 
 
+def audit_curriculum(curriculum: list[dict]) -> list[str]:
+    """Periksa konsistensi rentang durasi dan format bulan kurikulum."""
+    warnings = []
+
+    for index, item in enumerate(curriculum, start=1):
+        if not isinstance(item, dict):
+            continue
+
+        duration = str(item.get("duration", "")).strip()
+        month = str(item.get("month", "")).strip()
+
+        numbers = re.findall(r"\d+", duration)
+
+        if len(numbers) >= 2:
+            start = int(numbers[0])
+            end = int(numbers[1])
+
+            if start > end:
+                warnings.append(
+                    f"Kurikulum ke-{index}: "
+                    f"rentang durasi tidak valid ({duration})"
+                )
+            elif start == end:
+                warnings.append(
+                    f"Kurikulum ke-{index}: "
+                    f"durasi awal dan akhir sama ({duration})"
+                )
+
+        if not re.search(r"^Bulan ke-\d+$", month):
+            warnings.append(
+                f"Kurikulum ke-{index}: format bulan tidak dikenali"
+            )
+
+    return warnings
+
+
 def audit_detail(listing: dict, detail: dict) -> list[str]:
     """Bandingkan field penting pada kartu listing dengan halaman detail."""
     warnings = []
@@ -244,6 +280,12 @@ def audit_detail(listing: dict, detail: dict) -> list[str]:
             )
 
     curriculum = detail.get("curriculum", [])
+
+    if not isinstance(curriculum, list):
+        warnings.append("Format kurikulum tidak valid")
+        return warnings
+
+    warnings.extend(audit_curriculum(curriculum))
 
     for index, item in enumerate(curriculum, start=1):
         if not isinstance(item, dict):
