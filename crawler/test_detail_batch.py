@@ -1,31 +1,67 @@
 
 import json
+import re
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-from crawler import detail
-from crawler import detail
 from crawler.multi_page import scrape_keyword_pages
 from crawler.detail import parse_detail
 
 
-def validate_detail(detail: dict) -> tuple[bool, list[str]]:
-    """Memvalidasi kelengkapan data hasil scraping."""
-
+def validate_detail(detail: dict) -> list[str]:
     errors = []
 
+    if not isinstance(detail, dict):
+        return ["Data detail bukan dictionary"]
+
     if not detail.get("title"):
-        errors.append("Judul tidak ditemukan")
+        errors.append("Judul lowongan kosong")
 
     if not detail.get("description"):
-        errors.append("Deskripsi tidak ditemukan")
+        errors.append("Deskripsi pekerjaan kosong")
 
     if not detail.get("qualifications"):
         errors.append("Kualifikasi tidak ditemukan")
 
-    return len(errors) == 0, errors
+    curriculum = detail.get("curriculum", [])
 
+    if not isinstance(curriculum, list):
+        errors.append("Format kurikulum tidak valid")
+        return errors
+
+    if not curriculum:
+        errors.append("Kurikulum tidak ditemukan")
+    else:
+        for index, item in enumerate(curriculum, start=1):
+
+            if not isinstance(item, dict):
+                errors.append(
+                    f"Format kurikulum ke-{index} tidak valid"
+                )
+                continue
+
+            if not item.get("title"):
+                errors.append(
+                    f"Judul kurikulum ke-{index} kosong"
+                )
+
+            if not item.get("type"):
+                errors.append(
+                    f"Tipe kurikulum ke-{index} kosong"
+                )
+
+            if not item.get("month"):
+                errors.append(
+                    f"Bulan kurikulum ke-{index} kosong"
+                )
+
+            if not item.get("duration"):
+                errors.append(
+                    f"Durasi kurikulum ke-{index} kosong"
+                )
+
+    return errors
 
 def main():
     keyword = "it support"
@@ -74,7 +110,9 @@ def main():
                         print("    Durasi:", curriculum["duration"])
                         print("    Deskripsi:", curriculum["description"])
 
-                    is_valid, errors = validate_detail(detail)
+                    errors = validate_detail(detail)
+                    is_valid = not errors
+                    audit_warnings = audit_detail(item, detail)
                     combined = {
                         "listing": item,
                         "detail": detail,
@@ -82,6 +120,7 @@ def main():
                             "success" if is_valid else "partial"
                         ),
                         "validation_errors": errors,
+                        "audit_warnings": audit_warnings,
                     }
 
                     details.append(combined)
@@ -159,6 +198,78 @@ def main():
 
         finally:
             browser.close()
+
+
+def audit_detail(listing: dict, detail: dict) -> list[str]:
+    """Bandingkan field penting pada kartu listing dengan halaman detail."""
+    warnings = []
+
+    comparable_fields = {
+        "quota": ("quota", "quota"),
+        "applicants": ("applicants", "applicants"),
+        "opportunity": ("opportunity", "opportunity"),
+    }
+
+    for field, (listing_key, detail_key) in comparable_fields.items():
+        listing_value = listing.get(listing_key)
+        detail_value = detail.get(detail_key)
+
+        if listing_value is None or detail_value is None:
+            continue
+
+        if field in ("quota", "applicants"):
+            listing_number = re.search(
+                r"\d+", str(listing_value)
+            )
+            detail_number = re.search(
+                r"\d+", str(detail_value)
+            )
+
+            if (
+                listing_number
+                and detail_number
+                and listing_number.group() != detail_number.group()
+            ):
+                warnings.append(
+                    f"Perbedaan {field}: listing={listing_value}, "
+                    f"detail={detail_value}"
+                )
+        elif (
+            str(listing_value).strip().casefold()
+            != str(detail_value).strip().casefold()
+        ):
+            warnings.append(
+                f"Perbedaan {field}: listing={listing_value}, "
+                f"detail={detail_value}"
+            )
+
+    curriculum = detail.get("curriculum", [])
+
+    for index, item in enumerate(curriculum, start=1):
+        if not isinstance(item, dict):
+            warnings.append(
+                f"Kurikulum ke-{index}: format item tidak valid"
+            )
+            continue
+
+        title = item.get("title", "").strip()
+        description = item.get("description", "").strip()
+
+        if not title:
+            continue
+
+        if description and title.lower() == description.lower():
+            warnings.append(
+                f"Kurikulum ke-{index}: judul dan deskripsi identik"
+            )
+
+        if title.endswith((",", ":", "/", "&")):
+            warnings.append(
+                f"Kurikulum ke-{index}: kemungkinan judul terpotong"
+            )
+
+    return warnings
+
 
 
 if __name__ == "__main__":

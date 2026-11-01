@@ -128,11 +128,9 @@ def get_curriculum(page: Page) -> list[dict]:
     if panel.count() == 0:
         return []
 
-    # Setiap materi merupakan div dengan struktur flex items-start
     items = panel.locator(
-        "div.flex.items-start.gap-3.p-3.rounded-lg"
+        "div.space-y-2 > div.flex.items-start"
     )
-
     curriculum = []
 
     for index in range(items.count()):
@@ -157,7 +155,6 @@ def get_curriculum(page: Page) -> list[dict]:
         ]
 
         description_element = content.locator("p").first
-
         description = ""
 
         if description_element.count() > 0:
