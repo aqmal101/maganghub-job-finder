@@ -9,6 +9,8 @@ from crawler.multi_page import scrape_keyword_pages
 from crawler.detail import parse_detail
 from storage.export import export_batch
 from storage.manager import StorageManager
+from monitoring.analyzer import MonitoringAnalyzer
+from monitoring.reporter import MonitoringReporter
 
 
 def validate_detail(detail: dict) -> list[str]:
@@ -178,8 +180,33 @@ def main():
 
             # 5. Simpan snapshot dan perbarui master
             storage_manager = StorageManager()
-
             storage_result = storage_manager.save_batch(details)
+
+                # ==============================
+            # MONITORING
+            # ==============================
+
+            monitoring_period = "batch"
+
+            analyzer = MonitoringAnalyzer()
+            monitoring_report = analyzer.analyze(
+                storage_result,
+                period=monitoring_period
+            )
+
+            reporter = MonitoringReporter()
+            report_result = reporter.generate(monitoring_report)
+
+            print("\n=== MONITORING REPORT ===")
+            print(f"Periode             : {monitoring_report['period']}")
+            print(f"Lowongan baru       : {monitoring_report['summary']['new_jobs']}")
+            print(f"Perubahan confirmed : {monitoring_report['summary']['confirmed_changes']}")
+            print(f"Perubahan pending   : {monitoring_report['summary']['pending_changes']}")
+
+            print("\n=== REPORT FILES ===")
+            print(f"JSON : {report_result['json']}")
+            print(f"CSV  : {report_result['csv']}")
+            print(f"Rows : {report_result['total_rows']}")
 
             print("\n--- CHANGE TRACKING ---")
             print("Perubahan batch ini:", storage_result["new_changes"])

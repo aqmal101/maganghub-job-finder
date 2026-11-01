@@ -116,6 +116,9 @@ class StorageManager:
         preserved_details = 0
         skipped = 0
 
+        # Menyimpan daftar lowongan yang benar-benar baru.
+        added_jobs = []
+
         for incoming in records:
             if not isinstance(incoming, dict):
                 skipped += 1
@@ -166,6 +169,7 @@ class StorageManager:
 
                 master_jobs.append(new_job)
                 index_by_url[url] = len(master_jobs) - 1
+                added_jobs.append(new_job)
                 added += 1
                 continue
 
@@ -209,6 +213,7 @@ class StorageManager:
         return master_jobs, {
             "added": added,
             "updated": updated,
+            "added_jobs": added_jobs,
             "preserved_details": preserved_details,
             "skipped": skipped,
             "total_master": len(master_jobs),
@@ -243,6 +248,7 @@ class StorageManager:
 
         # 6. Kembalikan seluruh hasil
         return {
+            "batch_at": self.timestamp(now),
             "snapshot": snapshot_file,
 
             "master_json": export_result["json"],
@@ -259,6 +265,7 @@ class StorageManager:
             "reverted_changes": change_result["reverted_changes"],
             "pending_changes": change_result["pending_changes"],
             "total_changes": change_result["total_changes"],
+            
 
             # Penting: statistik master harus tetap dikembalikan.
             **stats,
