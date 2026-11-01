@@ -7,6 +7,8 @@ from playwright.sync_api import sync_playwright
 
 from crawler.multi_page import scrape_keyword_pages
 from crawler.detail import parse_detail
+from storage.export import export_batch
+from storage.manager import StorageManager
 
 
 def validate_detail(detail: dict) -> list[str]:
@@ -171,30 +173,51 @@ def main():
                 # Jeda antar permintaan
                 page.wait_for_timeout(2000)
 
-            # 4. Simpan hasil
-            output_dir = Path("output")
-            output_dir.mkdir(exist_ok=True)
+            # 4. Simpan hasil batch untuk kebutuhan pengujian
+            export_result = export_batch(details)
 
-            output_file = (
-                output_dir / "detail_batch_test.json"
-            )
+            # 5. Simpan snapshot dan perbarui master
+            storage_manager = StorageManager()
 
-            output_file.write_text(
-                json.dumps(
-                    details,
-                    ensure_ascii=False,
-                    indent=2,
-                ),
-                encoding="utf-8",
-            )
+            storage_result = storage_manager.save_batch(details)
 
-            # 5. Statistik akhir
+            print("\n--- CHANGE TRACKING ---")
+            print("Perubahan batch ini:", storage_result["new_changes"])
+            print("Total riwayat perubahan:", storage_result["total_changes"])
+            print("Changes JSON:", storage_result["changes_json"])
+            print("Changes CSV:", storage_result["changes_csv"])
+
+            # 6. Statistik akhir
             print("\n========== SELESAI ==========")
             print("Listing diuji:", len(sample))
             print("Detail berhasil:", successful)
             print("Detail parsial:", partial)
             print("Detail gagal:", failed)
-            print("File:", output_file)
+
+            print("\n--- HASIL EKSPOR BATCH ---")
+            print("JSON:", export_result["json"])
+            print("Listing CSV:", export_result["listings_csv"])
+            print("Detail CSV:", export_result["details_csv"])
+            print("Kurikulum CSV:", export_result["curriculum_csv"])
+
+            print("\n--- HASIL MASTER DATA ---")
+            print("Lowongan baru:", storage_result["added"])
+            print("Lowongan diperbarui:", storage_result["updated"])
+            print(
+                "Detail lama dipertahankan:",
+                storage_result["preserved_details"],
+            )
+            print("Record dilewati:", storage_result["skipped"])
+            print("Total master:", storage_result["total_master"])
+
+            print("\n--- HASIL SNAPSHOT ---")
+            print("Snapshot:", storage_result["snapshot"])
+
+            print("\n--- MASTER EXPORT ---")
+            print("JSON:", storage_result["master_json"])
+            print("Listing CSV:", storage_result["master_listings_csv"])
+            print("Detail CSV:", storage_result["master_details_csv"])
+            print("Kurikulum CSV:", storage_result["master_curriculum_csv"])
 
         finally:
             browser.close()
