@@ -99,20 +99,20 @@ def get_sidebar_data(page: Page) -> dict:
     }
 
 
-def get_curriculum(page: Page) -> str:
+def get_curriculum(page: Page) -> list[dict]:
     section = find_section(
         page, "Skill yang Bakal Kamu Dapat"
     )
 
     if section is None:
-        return ""
+        return []
 
     button = section.locator(
         "button[aria-controls]"
     ).first
 
     if button.count() == 0:
-        return ""
+        return []
 
     if button.get_attribute("aria-expanded") == "false":
         button.click()
@@ -121,14 +121,60 @@ def get_curriculum(page: Page) -> str:
     panel_id = button.get_attribute("aria-controls")
 
     if not panel_id:
-        return ""
+        return []
 
     panel = page.locator(f"#{panel_id}")
 
     if panel.count() == 0:
-        return ""
+        return []
 
-    return normalize_text(panel.inner_text())
+    # Setiap materi merupakan div dengan struktur flex items-start
+    items = panel.locator(
+        "div.flex.items-start.gap-3.p-3.rounded-lg"
+    )
+
+    curriculum = []
+
+    for index in range(items.count()):
+        item = items.nth(index)
+
+        content = item.locator("div.flex-1.min-w-0")
+
+        if content.count() == 0:
+            continue
+
+        title = normalize_text(
+            content.locator("div.text-sm.font-medium").first.inner_text()
+        )
+
+        metadata = content.locator(
+            "div.flex.flex-wrap"
+        ).first.locator("span")
+
+        metadata_values = [
+            normalize_text(metadata.nth(i).inner_text())
+            for i in range(metadata.count())
+        ]
+
+        description_element = content.locator("p").first
+
+        description = ""
+
+        if description_element.count() > 0:
+            description = normalize_text(
+                description_element.inner_text()
+            )
+
+        curriculum.append({
+            "order": index + 1,
+            "title": title,
+            "type": metadata_values[0] if len(metadata_values) > 0 else "",
+            "month": metadata_values[1] if len(metadata_values) > 1 else "",
+            "duration": metadata_values[2] if len(metadata_values) > 2 else "",
+            "description": description,
+        })
+
+    return curriculum
 
 
 def get_opportunity(page: Page) -> str:
@@ -157,6 +203,7 @@ def parse_detail(page: Page, url: str) -> dict:
     title = normalize_text(
         page.locator("h1").first.inner_text()
     )
+    curriculum = get_curriculum(page)
 
     return {
         "title": title,
@@ -165,7 +212,7 @@ def parse_detail(page: Page, url: str) -> dict:
             page, "Deskripsi Lowongan"
         ),
         "qualifications": get_qualification_items(page),
-        "skills": get_curriculum(page),
+        "curriculum": curriculum,
         "holidays": get_section_text(
             page, "Hari Libur"
         ),
