@@ -88,3 +88,26 @@ def test_rate_limit_returns_429(tmp_path, monkeypatch):
 
     assert client.get("/api/v1/jobs").status_code == 200
     assert client.get("/api/v1/jobs").status_code == 429
+
+
+def test_csv_export_quotes_values_and_neutralizes_formulas(tmp_path, monkeypatch):
+    settings = get_settings()
+    monkeypatch.setattr(settings, "data_dir", tmp_path)
+    client = make_client(tmp_path)
+
+    jobs = json.loads(
+        (tmp_path / "master" / "jobs.json").read_text(encoding="utf-8")
+    )
+    jobs[0]["listing"]["company"] = '=HYPERLINK("https://example.test")'
+    jobs[0]["listing"]["title"] = "Python, Intern"
+    (tmp_path / "master" / "jobs.json").write_text(
+        json.dumps(jobs),
+        encoding="utf-8",
+    )
+
+    response = client.get("/api/v1/exports/jobs.csv")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/csv")
+    assert "'=HYPERLINK" in response.text
+    assert '"Python, Intern"' in response.text

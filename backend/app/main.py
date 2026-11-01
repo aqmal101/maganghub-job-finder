@@ -1,4 +1,6 @@
 from math import ceil
+from io import StringIO
+import csv
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
@@ -222,7 +224,10 @@ def get_monitoring_changes(
 
 @app.get("/api/v1/scraping/last-run", response_model=LastRunResponse)
 def get_last_run(repo: LegacyJsonRepository = Depends(repository)) -> LastRunResponse:
-    return LastRunResponse(**repo.last_run())
+    try:
+        return LastRunResponse(**repo.last_run())
+    except LegacyDataError as error:
+        raise handle_data_error(error) from error
 
 
 @app.get("/api/v1/exports/jobs.csv")
@@ -241,19 +246,27 @@ def export_jobs(
     except LegacyDataError as error:
         raise handle_data_error(error) from error
 
-    rows = ["url,title,company,location,status"]
+    output = StringIO()
+    writer = csv.writer(output, lineterminator="\n")
+    writer.writerow(["url", "title", "company", "location", "status"])
+
+    def safe_csv_value(value: object) -> str:
+        text = str(value)
+        if text.startswith(("=", "+", "-", "@")):
+            return "'" + text
+        return text
+
     for job in jobs:
         listing = job_listing(job)
-        values = [
-            str(listing.get("url", "")),
-            str(listing.get("title", "")),
-            str(listing.get("company", "")),
-            str(listing.get("location", "")),
-            str(job.get("scraping_status", "")),
-        ]
-        rows.append(",".join(f'"{value.replace(chr(34), chr(34) * 2)}"' for value in values))
+        writer.writerow([
+            safe_csv_value(listing.get("url", "")),
+            safe_csv_value(listing.get("title", "")),
+            safe_csv_value(listing.get("company", "")),
+            safe_csv_value(listing.get("location", "")),
+            safe_csv_value(job.get("scraping_status", "")),
+        ])
     return StreamingResponse(
-        iter(["\n".join(rows)]),
+        iter([output.getvalue()]),
         media_type="text/csv",
         headers={"Content-Disposition": 'attachment; filename="jobs.csv"'},
     )

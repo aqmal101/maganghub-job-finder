@@ -1,6 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,12 +15,12 @@ class Settings(BaseSettings):
     data_dir: Path = Path("output")
     cors_origins: str = ""
     trusted_proxy_ips: str = ""
-    rate_limit_window_seconds: int = 60
-    rate_limit_jobs: int = 60
-    rate_limit_job_detail: int = 60
-    rate_limit_statistics: int = 30
-    rate_limit_search: int = 30
-    rate_limit_export: int = 5
+    rate_limit_window_seconds: int = Field(default=60, gt=0)
+    rate_limit_jobs: int = Field(default=60, gt=0)
+    rate_limit_job_detail: int = Field(default=60, gt=0)
+    rate_limit_statistics: int = Field(default=30, gt=0)
+    rate_limit_search: int = Field(default=30, gt=0)
+    rate_limit_export: int = Field(default=5, gt=0)
 
     def cors_origin_list(self) -> list[str]:
         return [
