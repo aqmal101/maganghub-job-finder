@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     )
 
     data_dir: Path = Path("output")
-    cors_origins: str = ""
+    cors_origins: str = "http://127.0.0.1:3000,http://localhost:3000"
     trusted_proxy_ips: str = ""
     rate_limit_window_seconds: int = Field(default=60, gt=0)
     rate_limit_jobs: int = Field(default=60, gt=0)
